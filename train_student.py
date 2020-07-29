@@ -59,9 +59,11 @@ def parse_option():
     # model
     parser.add_argument('--model_s', type=str, default='resnet8',
                         choices=['resnet8', 'resnet14', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110',
-                                 'resnet8x4', 'resnet32x4', 'wrn_16_1', 'wrn_16_2', 'wrn_40_1', 'wrn_40_2',
-                                 'vgg8', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'ResNet50',
-                                 'MobileNetV2', 'ShuffleV1', 'ShuffleV2'])
+                                 'resnet8x4', 'resnet8x4_double', 'resnet32x4',
+                                 'wrn_16_1', 'wrn_16_2', 'wrn_16_2_double', 'wrn_40_1', 'wrn_40_2',
+                                 'vgg8', 'vgg8_double', 'vgg11', 'vgg13', 'vgg13_double', 'vgg16', 'vgg19',
+                                 'ResNet50', 'MobileNetV2', 'MobileNetV2Double', 'ShuffleV1', 'ShuffleV1Double',
+                                 'ShuffleV2', 'ShuffleV2Double'])
     parser.add_argument('--path_t', type=str, default=None, help='teacher model snapshot')
 
     # distillation
@@ -96,8 +98,6 @@ def parse_option():
     parser.add_argument('--no_edge_transform', action='store_true')
 
     # teacher layers and student layers for HKD
-    parser.add_argument('--teacher_layer', nargs='+', type=int, default=[])
-    parser.add_argument('--student_layer', nargs='+', type=int, default=[])
     parser.add_argument('--hkd_initial_weight', default=100, type=float, help='Initial layer weight for HKD method')
     parser.add_argument('--hkd_decay', default=0.7, type=float, help='Layer weight decay for HKD method')
 

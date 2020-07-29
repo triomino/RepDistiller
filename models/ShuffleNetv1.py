@@ -124,6 +124,15 @@ def ShuffleV1(**kwargs):
     return ShuffleNet(cfg, **kwargs)
 
 
+def ShuffleV1Double(**kwargs):
+    cfg = {
+        'out_planes': [480, 960, 1920],
+        'num_blocks': [4, 8, 4],
+        'groups': 3
+    }
+    return ShuffleNet(cfg, **kwargs)
+
+
 if __name__ == '__main__':
 
     x = torch.randn(2, 3, 32, 32)
