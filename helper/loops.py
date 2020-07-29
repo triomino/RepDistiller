@@ -156,6 +156,10 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             f_s = feat_s[-1]
             f_t = feat_t[-1]
             loss_kd = criterion_kd(f_s, f_t, transform_s, transform_t, opt.no_edge_transform)
+        elif opt.distill == 'hkd':
+            f_s = [feat_s[i] for i in opt.teacher_layer]
+            f_t = [feat_t[i] for i in opt.student_layer]
+            loss_kd = criterion_kd(f_s, f_t)
         elif opt.distill == 'pkt':
             f_s = feat_s[-1]
             f_t = feat_t[-1]
