@@ -5,6 +5,7 @@ the general training framework
 from __future__ import print_function
 
 import os
+import re
 import argparse
 import socket
 import time
@@ -30,6 +31,8 @@ from crd.criterion import CRDLoss
 
 from helper.loops import train_distill as train, validate
 from helper.pretrain import init
+
+split_symbol = '~' if os.name == 'nt' else ':'
 
 
 def parse_option():
@@ -122,8 +125,9 @@ def parse_option():
 
     opt.model_t = get_teacher_name(opt.path_t)
 
-    opt.model_name = 'S:{}_T:{}_{}_{}_r:{}_a:{}_b:{}_{}'.format(opt.model_s, opt.model_t, opt.dataset, opt.distill,
-                                                                opt.gamma, opt.alpha, opt.beta, opt.trial)
+    model_name_template = split_symbol.join(['S', '{}_T', '{}_{}_{}_r', '{}_a', '{}_b', '{}_{}'])
+    opt.model_name = model_name_template.format(opt.model_s, opt.model_t, opt.dataset, opt.distill,
+                                                opt.gamma, opt.alpha, opt.beta, opt.trial)
 
     opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
     if not os.path.isdir(opt.tb_folder):
@@ -138,7 +142,12 @@ def parse_option():
 
 def get_teacher_name(model_path):
     """parse teacher name"""
-    segments = model_path.split('/')[-2].split('_')
+    directory = model_path.split('/')[-2]
+    pattern = ''.join(['S', split_symbol, '(.+)', '_T', split_symbol])
+    name_match = re.match(pattern, directory)
+    if name_match:
+        return name_match[1]
+    segments = directory.split('_')
     if segments[0] != 'wrn':
         return segments[0]
     else:
