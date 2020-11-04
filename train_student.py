@@ -76,8 +76,8 @@ def parse_option():
                                                                       'hkd'])
     parser.add_argument('--trial', type=str, default='1', help='trial id')
 
-    parser.add_argument('-r', '--gamma', type=float, default=1, help='weight for classification')
-    parser.add_argument('-a', '--alpha', type=float, default=None, help='weight balance for KD')
+    parser.add_argument('-r', '--gamma', type=float, default=1.0, help='weight for classification')
+    parser.add_argument('-a', '--alpha', type=float, default=1.0, help='weight balance for KD')
     parser.add_argument('-b', '--beta', type=float, default=None, help='weight balance for other losses')
 
     # KL distillation
