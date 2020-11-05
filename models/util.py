@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import torch.nn as nn
+import torch.nn.functional as F
 import math
 
 
@@ -266,6 +267,80 @@ class PoolEmbed(nn.Module):
 
     def forward(self, x):
         return self.embed(x)
+
+
+def _get_num_features(model):
+    if model == 'resnet32x4':
+        return [32, 64, 128, 256]
+    if model == 'resnet32':
+        return [16, 16, 32, 64]
+    # if model.startswith('resnet'):
+    #     n = int(model[6:])
+    #     if n in [18, 34, 50, 101, 152]:
+    #         return [64, 64, 128, 256, 512]
+    #     else:
+    #         n = (n-2) // 6
+    #         return [16]*n+[32]*n+[64]*n
+    # elif model.startswith('vgg'):
+    #     n = int(model[3:].split('_')[0])
+    #     if n == 9:
+    #         return [64, 128, 256, 512, 512]
+    #     elif n == 11:
+    #         return [64, 128, 256, 512, 512]
+
+    raise NotImplementedError
+
+
+class WeightNetwork(nn.ModuleList):
+    def __init__(self, source_model, pairs):
+        super(WeightNetwork, self).__init__()
+        n = _get_num_features(source_model)
+        for i, _ in pairs:
+            self.append(nn.Linear(n[i], n[i]))
+            self[-1].weight.data.zero_()
+            self[-1].bias.data.zero_()
+        self.pairs = pairs
+
+    def forward(self, source_features):
+        outputs = []
+        for i, (idx, _) in enumerate(self.pairs):
+            f = source_features[idx]
+            f = F.avg_pool2d(f, f.size(2)).view(-1, f.size(1))
+            outputs.append(F.softmax(self[i](f), 1))
+        return outputs
+
+
+class LossWeightNetwork(nn.ModuleList):
+    def __init__(self, source_model, pairs, weight_type='relu', init=None):
+        super(LossWeightNetwork, self).__init__()
+        n = _get_num_features(source_model)
+        if weight_type == 'const':
+            self.weights = nn.Parameter(torch.zeros(len(pairs)))
+        else:
+            for i, _ in pairs:
+                ll = nn.Linear(n[i], 1)
+                if init is not None:
+                    nn.init.constant_(ll.bias, init)
+                self.append(ll)
+        self.pairs = pairs
+        self.weight_type = weight_type
+
+    def forward(self, source_features):
+        outputs = []
+        if self.weight_type == 'const':
+            for w in F.softplus(self.weights.mul(10)):
+                outputs.append(w.view(1, 1))
+        else:
+            for i, (idx, _) in enumerate(self.pairs):
+                f = source_features[idx]
+                f = F.avg_pool2d(f, f.size(2)).view(-1, f.size(1))
+                if self.weight_type == 'relu':
+                    outputs.append(F.relu(self[i](f)))
+                elif self.weight_type == 'relu-avg':
+                    outputs.append(F.relu(self[i](f.div(f.size(1)))))
+                elif self.weight_type == 'relu6':
+                    outputs.append(F.relu6(self[i](f)))
+        return outputs
 
 
 if __name__ == '__main__':

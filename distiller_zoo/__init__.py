@@ -13,3 +13,4 @@ from .SP import Similarity
 from .VID import VIDLoss
 from .IRG import IRGLoss
 from .HKD import HKDLoss
+from .L2TWW import L2TWW

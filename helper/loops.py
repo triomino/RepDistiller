@@ -188,6 +188,12 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             factor_s = module_list[1](feat_s[-2])
             factor_t = module_list[2](feat_t[-2], is_factor=True)
             loss_kd = criterion_kd(factor_s, factor_t)
+        elif opt.distill == 'l2tww':
+            weights = module_list[-3](feat_t)  # wnet
+            loss_weights = module_list[-2](feat_t)  # lwnet
+            beta = [opt.beta] * len(module_list[-3])
+
+            loss_kd = criterion_kd(feat_t, feat_s, weights, beta, loss_weights)
         else:
             raise NotImplementedError(opt.distill)
 

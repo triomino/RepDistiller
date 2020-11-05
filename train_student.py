@@ -19,14 +19,14 @@ import torch.backends.cudnn as cudnn
 
 from models import model_dict
 from models.util import Embed, ConvReg, LinearEmbed
-from models.util import Connector, Translator, Paraphraser
+from models.util import Connector, Translator, Paraphraser, WeightNetwork, LossWeightNetwork
 
 from dataset.cifar100 import get_cifar100_dataloaders, get_cifar100_dataloaders_sample
 
 from helper.util import adjust_learning_rate
 
 from distiller_zoo import DistillKL, HintLoss, Attention, Similarity, Correlation, VIDLoss, RKDLoss, IRGLoss
-from distiller_zoo import PKT, ABLoss, FactorTransfer, KDSVD, FSP, NSTLoss, HKDLoss
+from distiller_zoo import PKT, ABLoss, FactorTransfer, KDSVD, FSP, NSTLoss, HKDLoss, L2TWW
 from crd.criterion import CRDLoss
 
 from helper.loops import train_distill as train, validate
@@ -73,7 +73,7 @@ def parse_option():
     parser.add_argument('--distill', type=str, default='kd', choices=['kd', 'hint', 'attention', 'similarity',
                                                                       'correlation', 'vid', 'crd', 'kdsvd', 'fsp',
                                                                       'rkd', 'pkt', 'abound', 'factor', 'nst', 'irg', 
-                                                                      'hkd'])
+                                                                      'hkd', 'l2tww'])
     parser.add_argument('--trial', type=str, default='1', help='trial id')
 
     parser.add_argument('-r', '--gamma', type=float, default=1.0, help='weight for classification')
@@ -103,6 +103,11 @@ def parse_option():
     # teacher layers and student layers for HKD
     parser.add_argument('--hkd_initial_weight', default=100, type=float, help='Initial layer weight for HKD method')
     parser.add_argument('--hkd_decay', default=0.7, type=float, help='Layer weight decay for HKD method')
+
+    # configs in l2t-ww method
+    parser.add_argument('--pairs', type=str, default='0-0,0-3,0-2,0-1,3-0,3-3,3-2,3-1,2-0,2-3,2-2,2-1,1-0,1-3,1-2,1-1')
+    parser.add_argument('--loss-weight-type', type=str, default='relu6')
+    parser.add_argument('--loss-weight-init', type=float, default=1.0)
 
     opt = parser.parse_args()
 
@@ -187,6 +192,8 @@ def main():
         raise NotImplementedError(opt.dataset)
 
     # model
+    arch_t = opt.model_t
+    arch_s = opt.model_s
     model_t = load_teacher(opt.path_t, n_cls)
     model_s = model_dict[opt.model_s](num_classes=n_cls)
 
@@ -195,6 +202,14 @@ def main():
     model_s.eval()
     feat_t, _ = model_t(data, is_feat=True)
     feat_s, _ = model_s(data, is_feat=True)
+
+    # print(arch_t)
+    # for ft in feat_t:
+    #     print(ft.shape)
+    # print(arch_s)
+    # for fs in feat_s:
+    #     print(fs.shape)
+    # return 
 
     module_list = nn.ModuleList([])
     module_list.append(model_s)
@@ -288,6 +303,20 @@ def main():
         init(model_s, model_t, init_trainable_list, criterion_kd, train_loader, logger, opt)
         # classification training
         pass
+    elif opt.distill == 'l2tww':
+        pairs = []
+        for pair in opt.pairs.split(','):
+            pairs.append((int(pair.split('-')[0]), int(pair.split('-')[1])))
+
+        criterion_kd = L2TWW(opt.model_t, opt.model_s, pairs)
+
+        wnet = WeightNetwork(opt.model_t, pairs)
+        lwnet = LossWeightNetwork(opt.model_t, pairs, opt.loss_weight_type, opt.loss_weight_init)
+        trainable_list.append(wnet)
+        trainable_list.append(lwnet)
+        module_list.append(wnet)
+        module_list.append(lwnet)
+
     else:
         raise NotImplementedError(opt.distill)
 
